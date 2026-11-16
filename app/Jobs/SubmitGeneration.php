@@ -6,6 +6,7 @@ use App\Models\Generation;
 use App\Pixelforge\GenerationSync;
 use App\Pixelforge\PixelforgeClient;
 use App\Pixelforge\PixelforgeException;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -18,16 +19,28 @@ use Throwable;
  * retry, a crash after the request went out, a duplicate job) can never create
  * or bill a second generation: Pixelforge returns the one that already exists.
  */
-class SubmitGeneration implements ShouldQueue
+class SubmitGeneration implements ShouldBeUnique, ShouldQueue
 {
     use InteractsWithQueue, Queueable;
 
     public int $tries = 6;
 
+    /**
+     * The reconcile command can enqueue this again while an earlier job for the
+     * same generation is still waiting or retrying; only one needs to exist.
+     * (Duplicates would be harmless anyway, because of the Idempotency-Key.)
+     */
+    public int $uniqueFor = 300;
+
     /** Pixelforge errors that mean "nothing was created", so the generation can safely be failed. */
     private const NOTHING_CREATED = ['overloaded', 'rate_limit_exceeded', 'concurrency_limit_exceeded'];
 
     public function __construct(public readonly string $generationId) {}
+
+    public function uniqueId(): string
+    {
+        return $this->generationId;
+    }
 
     public function handle(PixelforgeClient $client, GenerationSync $sync): void
     {

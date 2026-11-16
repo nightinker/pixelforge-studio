@@ -97,6 +97,9 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Laravel writes UTC wall-clock times. Without this, Postgres reads them in the
+            // server's own timezone and every stored instant is silently shifted.
+            'timezone' => 'UTC',
         ],
 
         'sqlsrv' => [
