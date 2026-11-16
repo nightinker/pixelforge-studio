@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'pixelforge' => [
+        'base_url' => env('PIXELFORGE_BASE_URL', 'https://pixelforge.promptedit.dev/v1'),
+        'api_key' => env('PIXELFORGE_API_KEY'),
+        'webhook_secret' => env('PIXELFORGE_WEBHOOK_SECRET'),
+        // Our margin over Pixelforge's cost, in percent.
+        'markup_percent' => (int) env('PIXELFORGE_MARKUP_PERCENT', 25),
+    ],
+
 ];
