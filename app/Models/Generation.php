@@ -12,6 +12,10 @@ class Generation extends Model
 {
     use HasFactory, HasUuids;
 
+    public const SIZES = ['1024x1024', '1536x1024', '1024x1536'];
+
+    public const QUALITIES = ['low', 'medium', 'high'];
+
     protected $guarded = [];
 
     protected function casts(): array
@@ -40,5 +44,27 @@ class Generation extends Model
     public function isSettled(): bool
     {
         return $this->settled_at !== null;
+    }
+
+    /**
+     * Fail a generation that never reached Pixelforge (rejected, or we gave up).
+     *
+     * One guarded UPDATE: it only applies while the generation is still queued
+     * and has no provider id. If a webhook has already linked or advanced it,
+     * the provider's word wins and this does nothing.
+     */
+    public static function failUnsubmitted(string $id, string $code, string $message): bool
+    {
+        return static::query()
+            ->whereKey($id)
+            ->whereNull('provider_id')
+            ->where('status', GenerationStatus::Queued->value)
+            ->update([
+                'status' => GenerationStatus::Failed->value,
+                'error_code' => $code,
+                'error_message' => $message,
+                'completed_at' => now(),
+                'updated_at' => now(),
+            ]) === 1;
     }
 }
