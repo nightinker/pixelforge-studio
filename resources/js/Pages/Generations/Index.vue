@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, usePage, usePoll } from '@inertiajs/vue3';
-import { computed, watch } from 'vue';
+import { Head, Link, router, usePage, usePoll } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
     generations: { type: Array, required: true },
@@ -31,6 +31,25 @@ const STATUS = {
 function when(iso) {
     return new Date(iso).toLocaleString();
 }
+
+const retryError = computed(() => usePage().props.errors?.retry);
+
+// Ids being retried right now, so a double click cannot start two paid generations.
+const retrying = ref(new Set());
+
+function retry(generation) {
+    if (retrying.value.has(generation.id)) return;
+    retrying.value = new Set(retrying.value).add(generation.id);
+
+    router.post(route('generations.retry', generation.id), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            const next = new Set(retrying.value);
+            next.delete(generation.id);
+            retrying.value = next;
+        },
+    });
+}
 </script>
 
 <template>
@@ -59,6 +78,14 @@ function when(iso) {
                     role="status"
                 >
                     {{ flash }}
+                </div>
+
+                <div
+                    v-if="retryError"
+                    class="rounded-md bg-red-50 p-4 text-sm text-red-800"
+                    role="alert"
+                >
+                    {{ retryError }}
                 </div>
 
                 <div
@@ -140,7 +167,20 @@ function when(iso) {
                             class="mt-2 text-sm text-red-700"
                         >
                             {{ generation.error_message }}
+                            <span v-if="generation.error_code" class="ms-1 font-mono text-xs text-red-500">
+                                ({{ generation.error_code }})
+                            </span>
                         </p>
+
+                        <button
+                            v-if="generation.status === 'failed'"
+                            type="button"
+                            class="mt-3 inline-flex items-center rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="retrying.has(generation.id)"
+                            @click="retry(generation)"
+                        >
+                            {{ retrying.has(generation.id) ? 'Retrying…' : 'Retry' }}
+                        </button>
 
                         <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                             <dt class="text-gray-500">Estimated</dt>

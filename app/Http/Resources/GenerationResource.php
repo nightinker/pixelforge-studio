@@ -30,6 +30,8 @@ class GenerationResource extends JsonResource
             'image_url' => $this->status === GenerationStatus::Succeeded && ! $imageExpired ? $this->image_url : null,
             'image_expired' => $this->status === GenerationStatus::Succeeded && $imageExpired,
             'error_message' => $this->status === GenerationStatus::Failed ? $this->error_message : null,
+            // The provider's own error code, so a failure is diagnosable from the page.
+            'error_code' => $this->status === GenerationStatus::Failed ? $this->error_code : null,
             'created_at' => $this->created_at->toIso8601String(),
             'completed_at' => $this->completed_at?->toIso8601String(),
         ];

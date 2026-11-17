@@ -24,6 +24,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/generations/estimate', [GenerationController::class, 'estimate'])->name('generations.estimate');
     Route::post('/generations', [GenerationController::class, 'store'])->name('generations.store');
     Route::get('/generations', [GenerationController::class, 'index'])->name('generations.index');
+    Route::post('/generations/{generation}/retry', [GenerationController::class, 'retry'])
+        ->whereUuid('generation')
+        ->name('generations.retry');
 });
 
 Route::middleware('auth')->group(function () {

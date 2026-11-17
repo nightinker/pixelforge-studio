@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\GenerationStatus;
 use App\Http\Requests\StoreGenerationRequest;
 use App\Http\Resources\GenerationResource;
 use App\Models\Generation;
@@ -67,6 +68,39 @@ class GenerationController extends Controller
 
         return redirect()->route('generations.index')
             ->with('status', 'Your image is on its way. You are only charged if it succeeds.');
+    }
+
+    /**
+     * Try a failed generation again.
+     *
+     * This creates a NEW generation (new id, so a new Idempotency-Key) with the same
+     * inputs. The failed one is final and stays in the history as it was; reusing its
+     * key could simply hand back the same failure.
+     */
+    public function retry(Request $request, string $generation): RedirectResponse
+    {
+        // Scoped to the user's own generations: someone else's id is a plain 404.
+        $original = $request->user()->generations()->findOrFail($generation);
+
+        abort_unless(
+            $original->status === GenerationStatus::Failed,
+            409,
+            'Only a failed generation can be retried.',
+        );
+
+        try {
+            $this->generations->create($request->user(), [
+                'prompt' => $original->prompt,
+                'size' => $original->size,
+                'quality' => $original->quality,
+                'reference_images' => $original->reference_images ?? [],
+            ]);
+        } catch (PixelforgeException $e) {
+            return back()->withErrors(['retry' => $e->userMessage()]);
+        }
+
+        return redirect()->route('generations.index')
+            ->with('status', 'Trying again. You are only charged if it succeeds.');
     }
 
     public function index(Request $request): Response
