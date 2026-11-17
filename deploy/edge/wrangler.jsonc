@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pixelforge-api",
+  "account_id": "ec46e017c6e650da8120a6a9e4d5836c",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  // Laravel runs as a container (web + queue worker + scheduler); this Worker is only the front door.
+  "containers": [
+    {
+      "class_name": "PixelforgeContainer",
+      "image": "../../Dockerfile",
+      "image_build_context": "../..",
+      "instance_type": "standard-1",
+      // One instance on purpose: one queue worker and one scheduler, so nothing runs twice.
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "APP_CONTAINER", "class_name": "PixelforgeContainer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PixelforgeContainer"] }],
+  // The container sleeps when idle, which would stop the scheduler. This wakes it
+  // every 5 minutes so generations:reconcile keeps running as a backstop for lost webhooks.
+  "triggers": { "crons": ["*/5 * * * *"] }
+}
